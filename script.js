@@ -77,6 +77,11 @@ class Polygon {
     this.dataPath.push({ x, y });
   }
 
+  arc(x, y, radius, start, end) {
+    this.path.arc(x, y, radius, start, end);
+    // x, y, radius, startAngle, endAngle, counterclockwise
+  }
+
   addChild(polygon) {
     this.children.push(polygon);
     if (polygon.semanticElement) {
@@ -202,6 +207,40 @@ class Polygon {
               data[index + 1] = 0;
               data[index + 2] = 0;
               data[index + 3] = 255;
+
+              if (vizi.type === "top") {
+                if (this.context.isPointInPath(this.path, x, y + 1)) {
+                  index = ((y + 1) * this.canvas.width + x) * 4;
+                  data[index] = 0;
+                  data[index + 1] = 0;
+                  data[index + 2] = 0;
+                  data[index + 3] = 255;
+                }
+              } else if (vizi.type === "left") {
+                if (this.context.isPointInPath(this.path, x + 1, y)) {
+                  index = (y * this.canvas.width + (x + 1)) * 4;
+                  data[index] = 0;
+                  data[index + 1] = 0;
+                  data[index + 2] = 0;
+                  data[index + 3] = 255;
+                }
+              } else if (vizi.type === "right") {
+                if (this.context.isPointInPath(this.path, x - 1, y)) {
+                  index = (y * this.canvas.width + (x - 1)) * 4;
+                  data[index] = 0;
+                  data[index + 1] = 0;
+                  data[index + 2] = 0;
+                  data[index + 3] = 255;
+                }
+              } else if (vizi.type === "bottom") {
+                if (this.context.isPointInPath(this.path, x, y - 1)) {
+                  index = ((y - 1) * this.canvas.width + x) * 4;
+                  data[index] = 0;
+                  data[index + 1] = 0;
+                  data[index + 2] = 0;
+                  data[index + 3] = 255;
+                }
+              }
             }
           });
         }
@@ -286,13 +325,23 @@ const render = () => {
   Square2.addPoint(squareX, squareY);
   Square2.addPoint(squareX + 60, squareY);
   Square2.addPoint(squareX + 60, squareY - 60);
-  Square2.addPoint(squareX, squareY - 60);
   Square2.draw();
   Square2.onClick(() => {
     const count = document.getElementById("counter").textContent;
     document.getElementById("counter").textContent = `${Number(count) - 1}`;
   });
   Square2.onFocus(() => {
+    console.log("focou");
+  });
+
+  const Circle = new Polygon("button", context, canvas, "teste3");
+  Circle.arc(100, 100, 50, 0, 2 * Math.PI);
+  Circle.draw();
+  Circle.onClick(() => {
+    const count = document.getElementById("counter").textContent;
+    document.getElementById("counter").textContent = `${Number(count) * 2}`;
+  });
+  Circle.onFocus(() => {
     console.log("focou");
   });
 };
