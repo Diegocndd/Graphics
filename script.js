@@ -15,6 +15,7 @@ window.Drawer = {};
 window.Drawer.elements = [];
 window.Drawer.paths = {
   buttons: [],
+  images: [],
 };
 window.Drawer.events = {
   hasMouseMoveEvent: false,
@@ -22,11 +23,12 @@ window.Drawer.events = {
 window.Drawer.focusedElement = null;
 
 class Polygon {
-  constructor(semantic, context, canvas, id) {
+  constructor(semantic, context, canvas, id, ariaLabel) {
     context.beginPath();
 
     this.id = id;
     this.children = [];
+    this.ariaLabel = ariaLabel;
     this.semanticElement = null;
     this.semantic = semantic;
     this.context = context;
@@ -35,8 +37,11 @@ class Polygon {
     this.onFocusCallback = () => {};
     this.dataPath = [];
     this.path = new Path2D();
+    this.focable = this.semantic === "button";
 
     if (this.semantic === "button") window.Drawer.paths.buttons.push(this.path);
+
+    if (this.semantic === "image") window.Drawer.paths.images.push(this.path);
 
     if (!window.Drawer.events.hasMouseMoveEvent) {
       this.canvas.addEventListener(
@@ -65,10 +70,17 @@ class Polygon {
     if (this.semantic === "button") {
       const button = document.createElement("button");
       button.setAttribute("id", this.id);
-      button.textContent = "Pause button";
+      button.textContent = this.ariaLabel;
       canvas.appendChild(button);
 
       this.semanticElement = button;
+    } else if (this.semantic === "image") {
+      const image = document.createElement("image");
+      image.setAttribute("id", this.id);
+      image.setAttribute("alt", this.ariaLabel);
+      canvas.appendChild(image);
+
+      this.semanticElement = image;
     }
   }
 
@@ -79,7 +91,6 @@ class Polygon {
 
   arc(x, y, radius, start, end) {
     this.path.arc(x, y, radius, start, end);
-    // x, y, radius, startAngle, endAngle, counterclockwise
   }
 
   addChild(polygon) {
@@ -96,52 +107,44 @@ class Polygon {
     this.semanticElement = restoredElement;
   }
 
-  draw(createFocus = false) {
+  draw() {
     this.path.closePath();
 
-    var width = this.canvas.width;
-    var height = this.canvas.height;
-    var existingImageData = this.context.getImageData(0, 0, width, height);
-    var existingData = existingImageData.data;
+    if (this.focable) {
+      var width = this.canvas.width;
+      var height = this.canvas.height;
+      var existingImageData = this.context.getImageData(0, 0, width, height);
+      var existingData = existingImageData.data;
 
-    var imageData = this.context.createImageData(width, height);
-    var data = imageData.data;
+      var imageData = this.context.createImageData(width, height);
+      var data = imageData.data;
 
-    for (var i = 0; i < existingData.length; i++) {
-      data[i] = existingData[i];
-    }
+      for (var i = 0; i < existingData.length; i++) {
+        data[i] = existingData[i];
+      }
 
-    // var imageData = context.createImageData(width, height);
-    // var data = imageData.data;
-    for (var y = 0; y < height; y++) {
-      for (var x = 0; x < width; x++) {
-        var index = (y * width + x) * 4;
-        if (this.context.isPointInPath(this.path, x, y)) {
-          data[index] = 255;
-          data[index + 1] = 0;
-          data[index + 2] = 0;
-          data[index + 3] = 255;
+      for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+          var index = (y * width + x) * 4;
+          if (this.context.isPointInPath(this.path, x, y)) {
+            data[index] = 255;
+            data[index + 1] = 0;
+            data[index + 2] = 0;
+            data[index + 3] = 255;
+          }
         }
       }
+
+      context.putImageData(imageData, 0, 0);
     }
 
-    context.putImageData(imageData, 0, 0);
-
-    if (createFocus) {
-      // this.context.lineWidth = 3; // Espessura da linha do anel de foco
-      // this.context.strokeStyle = "black"; // Cor do anel de foco
-      // this.context.stroke(this.path);
-    } else {
-      this.context.restore();
-
-      // this.context.stroke(this.path);
-    }
+    // this.context.restore();
 
     if (window.Drawer.elements.indexOf(this.id) !== -1) {
       this.restoreElement(this.id);
       if (window.Drawer.focusedElement === this.semanticElement) {
         this.semanticElement.focus();
-        this.context.drawFocusIfNeeded(this.path, this.semanticElement);
+        // this.context.drawFocusIfNeeded(this.path, this.semanticElement);
       }
 
       return;
@@ -150,29 +153,6 @@ class Polygon {
     this.createSemantic();
 
     window.Drawer.elements.push(this.id);
-
-    let path = "";
-
-    // this.dataPath.forEach(({ x, y }) => {
-    //   path += `${x} ${y} `;
-    // });
-
-    // this.semanticElement.setAttribute("path", path);
-
-    if (this.semantic === "button") {
-      this.canvas.addEventListener(
-        "mousemove",
-        function (event) {
-          const rect = canvas.getBoundingClientRect();
-          const mouseX = event.clientX - rect.left;
-          const mouseY = event.clientY - rect.top;
-
-          if (this.context.isPointInPath(this.path, mouseX, mouseY)) {
-            canvas.style.cursor = "pointer";
-          }
-        }.bind(this)
-      );
-    }
   }
 
   drawStroke() {
@@ -273,24 +253,40 @@ class Polygon {
   }
 
   onFocus(callback) {
+    if (!this.focable || !this.semanticElement) return;
     this.onFocusCallback = callback;
 
-    if (this.semanticElement) {
-      this.semanticElement.onfocus = () => {
-        this.drawStroke();
-        this.onFocusCallback();
-      };
-    }
+    this.semanticElement.onfocus = () => {
+      this.drawStroke();
+      this.onFocusCallback();
+    };
 
     this.onBlur();
   }
 
   onBlur() {
-    if (this.semanticElement) {
-      this.semanticElement.onblur = () => {
-        this.draw();
-      };
-    }
+    if (!this.focable || !this.semanticElement) return;
+
+    this.semanticElement.onblur = () => {
+      this.draw();
+    };
+  }
+}
+
+class ImageP extends Polygon {
+  constructor(semantic, context, canvas, id, ariaLabel) {
+    super(semantic, context, canvas, id, ariaLabel);
+  }
+
+  draw(source, x, y, height, width) {
+    super.draw();
+    var img = new Image();
+
+    img.src = source;
+
+    img.onload = function () {
+      this.context.drawImage(img, x, y, width, height);
+    }.bind(this);
   }
 }
 
@@ -303,7 +299,7 @@ const render = () => {
 
   context.clearRect(0, 0, canvas.width, canvas.height);
 
-  const Square = new Polygon("button", context, canvas, "teste");
+  const Square = new Polygon("button", context, canvas, "teste", "Aumentar");
   Square.addPoint(squareX, squareY);
   Square.addPoint(squareX + 60, squareY);
   Square.addPoint(squareX + 60, squareY - 60);
@@ -317,33 +313,36 @@ const render = () => {
     console.log("focou");
   });
 
-  squareX = 300;
-  squareY = 400;
-  squareSize = 50;
+  const image = new ImageP("image", context, canvas, "imagem", "Gato filhote");
+  image.draw("cat.jpg", 100, 100, 100, 80);
 
-  const Square2 = new Polygon("button", context, canvas, "teste2");
-  Square2.addPoint(squareX, squareY);
-  Square2.addPoint(squareX + 60, squareY);
-  Square2.addPoint(squareX + 60, squareY - 60);
-  Square2.draw();
-  Square2.onClick(() => {
-    const count = document.getElementById("counter").textContent;
-    document.getElementById("counter").textContent = `${Number(count) - 1}`;
-  });
-  Square2.onFocus(() => {
-    console.log("focou");
-  });
+  // squareX = 300;
+  // squareY = 400;
+  // squareSize = 50;
 
-  const Circle = new Polygon("button", context, canvas, "teste3");
-  Circle.arc(100, 100, 50, 0, 2 * Math.PI);
-  Circle.draw();
-  Circle.onClick(() => {
-    const count = document.getElementById("counter").textContent;
-    document.getElementById("counter").textContent = `${Number(count) * 2}`;
-  });
-  Circle.onFocus(() => {
-    console.log("focou");
-  });
+  // const Square2 = new Polygon("button", context, canvas, "teste2", "Diminuir");
+  // Square2.addPoint(squareX, squareY);
+  // Square2.addPoint(squareX + 60, squareY);
+  // Square2.addPoint(squareX + 60, squareY - 60);
+  // Square2.draw();
+  // Square2.onClick(() => {
+  //   const count = document.getElementById("counter").textContent;
+  //   document.getElementById("counter").textContent = `${Number(count) - 1}`;
+  // });
+  // Square2.onFocus(() => {
+  //   console.log("focou");
+  // });
+
+  // const Circle = new Polygon("button", context, canvas, "teste3", "Dobrar");
+  // Circle.arc(100, 100, 50, 0, 2 * Math.PI);
+  // Circle.draw();
+  // Circle.onClick(() => {
+  //   const count = document.getElementById("counter").textContent;
+  //   document.getElementById("counter").textContent = `${Number(count) * 2}`;
+  // });
+  // Circle.onFocus(() => {
+  //   console.log("focou");
+  // });
 };
 
 render();
