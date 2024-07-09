@@ -1,15 +1,18 @@
-/**
- * Perceptibilidade: focus ring, cursors
- * Operabilidade: keyboard focus
- * Entendível: ?
- */
+function isElementChildOfCanvas(canvas, element) {
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    return false;
+  }
 
-/**
- * Semantics:
- *    Button
- *    Text
- *    Input
- */
+  let parent = element.parentNode;
+  while (parent !== null) {
+    if (parent === canvas) {
+      return true;
+    }
+    parent = parent.parentNode;
+  }
+
+  return false;
+}
 
 window.Drawer = {};
 window.Drawer.elements = [];
@@ -24,6 +27,10 @@ window.Drawer.focusedElement = null;
 
 class Polygon {
   constructor(semantic, context, canvas, id, ariaLabel) {
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error("Invalid <canvas> element.");
+    }
+
     context.beginPath();
 
     this.id = id;
@@ -43,6 +50,7 @@ class Polygon {
 
     if (this.semantic === "image") window.Drawer.paths.images.push(this.path);
 
+    // garante mudança do cursor em objetos clicáveis
     if (!window.Drawer.events.hasMouseMoveEvent) {
       this.canvas.addEventListener(
         "mousemove",
@@ -66,31 +74,25 @@ class Polygon {
     }
   }
 
+  /**
+   * Cria o elemento semântico na subDOM
+   */
   createSemantic() {
     if (this.semantic === "button") {
       const button = document.createElement("button");
-      button.setAttribute("id", this.id);
+      button.setAttribute("drawer-id", this.id);
       button.textContent = this.ariaLabel;
       canvas.appendChild(button);
 
       this.semanticElement = button;
     } else if (this.semantic === "image") {
       const image = document.createElement("image");
-      image.setAttribute("id", this.id);
+      image.setAttribute("drawer-id", this.id);
       image.setAttribute("alt", this.ariaLabel);
       canvas.appendChild(image);
 
       this.semanticElement = image;
     }
-  }
-
-  addPoint(x, y) {
-    this.path.lineTo(x, y);
-    this.dataPath.push({ x, y });
-  }
-
-  arc(x, y, radius, start, end) {
-    this.path.arc(x, y, radius, start, end);
   }
 
   addChild(polygon) {
@@ -102,15 +104,60 @@ class Polygon {
     }
   }
 
-  restoreElement(id) {
-    const restoredElement = document.getElementById(id);
+  restoreElement() {
+    const restoredElement = this.canvas.querySelector(`[drawer-id=${this.id}]`);
     this.semanticElement = restoredElement;
   }
 
-  draw() {
+  /**
+   * Desassocia o path do canvas do seu elemento semântico.
+   *
+   * @param {boolean} remove - se true, o elemento semântico é removido da subDOM.
+   */
+  clearElementPath(remove) {
+    if (remove) {
+      this.canvas.querySelector(`[drawer-id=${this.id}]`)?.remove();
+    }
+    const index = window.Drawer.elements.indexOf(this.id);
+    window.Drawer.elements.splice(index, 1);
+  }
+
+  /**
+   * Associa o path do canvas a um elemento da subDOM.
+   *
+   * @param {HTMLElement} element
+   * @returns
+   */
+  addElementPath(element) {
+    if (window.Drawer.elements.indexOf(this.id) !== -1) {
+      console.error(`#${this.id} is already an semantic element!`);
+      return;
+    }
+
+    if (!isElementChildOfCanvas(this.canvas, element)) {
+      console.error("Element must be a child of the canvas!");
+      return;
+    }
+
+    element.setAttribute("drawer-id", this.id);
+    element.setAttribute("alt", this.ariaLabel);
+    this.semanticElement = element;
+    window.Drawer.elements.push(this.id);
+  }
+
+  /**
+   * Desenha o path no canvas
+   *
+   * @param {boolean} autoSemantic - se true, um elemento semântico será criado de acordo com o parâmetro passado
+   * para classe Polygon
+   *
+   * @returns
+   */
+  draw(autoSemantic = true) {
     this.path.closePath();
 
     if (this.focable) {
+      // TODO: generalizar
       var width = this.canvas.width;
       var height = this.canvas.height;
       var existingImageData = this.context.getImageData(0, 0, width, height);
@@ -138,13 +185,14 @@ class Polygon {
       context.putImageData(imageData, 0, 0);
     }
 
-    // this.context.restore();
+    if (!autoSemantic) return;
 
+    // evita recriação dos elementos da subDOM
+    // pois essa recriação poderia ser confusa ao usuário
     if (window.Drawer.elements.indexOf(this.id) !== -1) {
-      this.restoreElement(this.id);
+      this.restoreElement();
       if (window.Drawer.focusedElement === this.semanticElement) {
         this.semanticElement.focus();
-        // this.context.drawFocusIfNeeded(this.path, this.semanticElement);
       }
 
       return;
@@ -229,6 +277,11 @@ class Polygon {
     this.context.putImageData(imgData, 0, 0);
   }
 
+  /**
+   * O evento de click é associado tanto ao elemento semântico quanto ao path
+   *
+   * @param {Function} callback
+   */
   onClick(callback) {
     this.onClickCallback = callback;
     if (this.semanticElement) {
@@ -252,6 +305,11 @@ class Polygon {
     );
   }
 
+  /**
+   * O evento de foco é associado ao elemento semântico. Quando focado, é desenhado um anel de foco em torno do path
+   *
+   * @param {Function} callback
+   */
   onFocus(callback) {
     if (!this.focable || !this.semanticElement) return;
     this.onFocusCallback = callback;
@@ -273,81 +331,60 @@ class Polygon {
   }
 }
 
-class ImageP extends Polygon {
-  constructor(semantic, context, canvas, id, ariaLabel) {
-    super(semantic, context, canvas, id, ariaLabel);
-  }
-
-  draw(source, x, y, height, width) {
-    super.draw();
-    var img = new Image();
-
-    img.src = source;
-
-    img.onload = function () {
-      this.context.drawImage(img, x, y, width, height);
-    }.bind(this);
-  }
-}
-
 const canvas = document.getElementsByTagName("canvas")[0];
 const context = canvas.getContext("2d");
+let squareX = 200;
+let squareY = 300;
+
+let squareX2 = 100;
+let squareY2 = 200;
 
 const render = () => {
-  let squareX = 200;
-  let squareY = 300;
-
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   const Square = new Polygon("button", context, canvas, "teste", "Aumentar");
-  Square.addPoint(squareX, squareY);
-  Square.addPoint(squareX + 60, squareY);
-  Square.addPoint(squareX + 60, squareY - 60);
-  Square.addPoint(squareX, squareY - 60);
+
+  const path = Square.path;
+  path.lineTo(squareX, squareY);
+  path.lineTo(squareX + 60, squareY);
+  path.lineTo(squareX + 60, squareY - 60);
+  path.lineTo(squareX, squareY - 60);
+
   Square.draw();
+
   Square.onClick(() => {
     const count = document.getElementById("counter").textContent;
     document.getElementById("counter").textContent = `${Number(count) + 1}`;
   });
+
   Square.onFocus(() => {
     console.log("focou");
   });
 
-  const image = new ImageP("image", context, canvas, "imagem", "Gato filhote");
-  image.draw("cat.jpg", 100, 100, 100, 80);
+  const Square2 = new Polygon("button", context, canvas, "teste2", "Aumentar");
 
-  // squareX = 300;
-  // squareY = 400;
-  // squareSize = 50;
+  const path2 = Square2.path;
+  path2.lineTo(squareX2, squareY2);
+  path2.lineTo(squareX2 + 60, squareY2);
+  path2.lineTo(squareX2 + 60, squareY2 - 60);
+  path2.lineTo(squareX2, squareY2 - 60);
 
-  // const Square2 = new Polygon("button", context, canvas, "teste2", "Diminuir");
-  // Square2.addPoint(squareX, squareY);
-  // Square2.addPoint(squareX + 60, squareY);
-  // Square2.addPoint(squareX + 60, squareY - 60);
-  // Square2.draw();
-  // Square2.onClick(() => {
-  //   const count = document.getElementById("counter").textContent;
-  //   document.getElementById("counter").textContent = `${Number(count) - 1}`;
-  // });
-  // Square2.onFocus(() => {
-  //   console.log("focou");
-  // });
+  Square2.draw();
 
-  // const Circle = new Polygon("button", context, canvas, "teste3", "Dobrar");
-  // Circle.arc(100, 100, 50, 0, 2 * Math.PI);
-  // Circle.draw();
-  // Circle.onClick(() => {
-  //   const count = document.getElementById("counter").textContent;
-  //   document.getElementById("counter").textContent = `${Number(count) * 2}`;
-  // });
-  // Circle.onFocus(() => {
-  //   console.log("focou");
-  // });
+  Square2.onClick(() => {
+    const count = document.getElementById("counter").textContent;
+    document.getElementById("counter").textContent = `${Number(count) - 1}`;
+  });
+
+  Square2.onFocus(() => {
+    console.log("focou");
+  });
 };
 
 render();
 
 function moveSquare(direction) {
+  console.log(direction);
   switch (direction) {
     case "ArrowUp":
       squareY -= 10;
