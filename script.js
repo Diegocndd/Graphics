@@ -118,8 +118,10 @@ class Polygon {
     if (remove) {
       this.canvas.querySelector(`[drawer-id=${this.id}]`)?.remove();
     }
+    console.log("aqui");
     const index = window.Drawer.elements.indexOf(this.id);
     window.Drawer.elements.splice(index, 1);
+    this.onClick(() => {});
   }
 
   /**
@@ -128,11 +130,11 @@ class Polygon {
    * @param {HTMLElement} element
    * @returns
    */
-  addElementPath(element) {
-    if (window.Drawer.elements.indexOf(this.id) !== -1) {
-      console.error(`#${this.id} is already an semantic element!`);
-      return;
-    }
+  setElementPath(element) {
+    // if (window.Drawer.elements.indexOf(this.id) !== -1) {
+    // console.error(`#${this.id} is already an semantic element!`);
+    // return;
+    // }
 
     if (!isElementChildOfCanvas(this.canvas, element)) {
       console.error("Element must be a child of the canvas!");
@@ -143,6 +145,9 @@ class Polygon {
     element.setAttribute("alt", this.ariaLabel);
     this.semanticElement = element;
     window.Drawer.elements.push(this.id);
+    this.draw();
+    this.onClick(element.onclick);
+    this.onFocus(element.onfocus);
   }
 
   /**
@@ -342,6 +347,8 @@ let squareY2 = 200;
 const render = () => {
   context.clearRect(0, 0, canvas.width, canvas.height);
 
+  /////////////// CRIANDO SQUARE 1
+
   const Square = new Polygon("button", context, canvas, "teste", "Aumentar");
 
   const path = Square.path;
@@ -350,18 +357,22 @@ const render = () => {
   path.lineTo(squareX + 60, squareY - 60);
   path.lineTo(squareX, squareY - 60);
 
-  Square.draw();
+  const newDiv = document.createElement("div");
+  const newContent = document.createTextNode("Hello, World!");
+  newDiv.appendChild(newContent);
+  newDiv.onclick = () => {
+    console.log("hihi");
+  };
 
-  Square.onClick(() => {
-    const count = document.getElementById("counter").textContent;
-    document.getElementById("counter").textContent = `${Number(count) + 1}`;
-  });
+  canvas.appendChild(newDiv);
+  Square.setElementPath(newDiv);
 
-  Square.onFocus(() => {
-    console.log("focou");
-  });
+  /////////////// CRIANDO SQUARE 2
 
-  const Square2 = new Polygon("button", context, canvas, "teste2", "Aumentar");
+  let squareX2 = 100;
+  let squareY2 = 200;
+
+  const Square2 = new Polygon("button", context, canvas, "test2", "Aumentar 2");
 
   const path2 = Square2.path;
   path2.lineTo(squareX2, squareY2);
@@ -369,16 +380,19 @@ const render = () => {
   path2.lineTo(squareX2 + 60, squareY2 - 60);
   path2.lineTo(squareX2, squareY2 - 60);
 
-  Square2.draw();
+  var _newDiv = document.createElement("div");
+  var _newContent = document.createTextNode("Hello, World 2!");
+  _newDiv.appendChild(_newContent);
+  _newDiv.onclick = () => {
+    console.log("lalla");
+  };
 
-  Square2.onClick(() => {
-    const count = document.getElementById("counter").textContent;
-    document.getElementById("counter").textContent = `${Number(count) - 1}`;
-  });
+  canvas.appendChild(_newDiv);
+  Square2.setElementPath(_newDiv);
 
-  Square2.onFocus(() => {
-    console.log("focou");
-  });
+  ////////////// CRIANDO RELAÇÃO DE PARENTESCO
+
+  // Square.addChild(Square2);
 };
 
 render();
