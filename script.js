@@ -1,3 +1,5 @@
+// Utils
+
 function isElementChildOfCanvas(canvas, element) {
   if (!(canvas instanceof HTMLCanvasElement)) {
     return false;
@@ -14,43 +16,67 @@ function isElementChildOfCanvas(canvas, element) {
   return false;
 }
 
+// Globais
 window.Drawer = {};
 window.Drawer.elements = [];
-window.Drawer.paths = {
-  buttons: [],
-  images: [],
-};
 window.Drawer.events = {
   hasMouseMoveEvent: false,
 };
 window.Drawer.focusedElement = null;
 
-class Polygon {
-  constructor(semantic, context, canvas, id, ariaLabel) {
+// Classe Graphic
+class Graphic {
+  constructor({
+    tag = "div",
+    context,
+    canvas,
+    id,
+    ariaLabel = "",
+    focable = false,
+  }) {
     if (!(canvas instanceof HTMLCanvasElement)) {
       throw new Error("Invalid <canvas> element.");
     }
 
-    context.beginPath();
+    if (!id) {
+      throw new Error("Element mush have an id.");
+    }
+
+    if (!context) {
+      throw new Error("Context is required.");
+    }
 
     this.id = id;
     this.children = [];
     this.ariaLabel = ariaLabel;
-    this.semanticElement = null;
-    this.semantic = semantic;
+    this.element = false;
     this.context = context;
     this.canvas = canvas;
     this.onClickCallback = () => {};
     this.onFocusCallback = () => {};
-    this.dataPath = [];
     this.path = new Path2D();
-    this.focable = this.semantic === "button";
+    this.tag = tag;
+    this.autoSemantic = true;
+    this.focable = focable;
 
-    if (this.semantic === "button") window.Drawer.paths.buttons.push(this.path);
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
 
-    if (this.semantic === "image") window.Drawer.paths.images.push(this.path);
+    if (!_element) {
+      window.Drawer.elements.push({
+        id: id,
+        inSubDOM: false,
+        path: this.path,
+        clickable: this.tag === "button",
+      });
 
-    // garante mudança do cursor em objetos clicáveis
+      this.setCanvasMouseEvents();
+      this.initializeDraw();
+    }
+  }
+
+  setCanvasMouseEvents() {
     if (!window.Drawer.events.hasMouseMoveEvent) {
       this.canvas.addEventListener(
         "mousemove",
@@ -61,7 +87,11 @@ class Polygon {
 
           let outsideAllButtons = true;
 
-          window.Drawer.paths.buttons.forEach((path) => {
+          const clickableElements = window.Drawer.elements.filter(
+            (element) => element.clickable
+          );
+
+          clickableElements.forEach(({ path }) => {
             if (this.context.isPointInPath(path, mouseX, mouseY)) {
               outsideAllButtons = false;
               canvas.style.cursor = "pointer";
@@ -74,55 +104,48 @@ class Polygon {
     }
   }
 
-  /**
-   * Cria o elemento semântico na subDOM
-   */
-  createSemantic() {
-    if (this.semantic === "button") {
-      const button = document.createElement("button");
-      button.setAttribute("drawer-id", this.id);
-      button.textContent = this.ariaLabel;
-      canvas.appendChild(button);
-
-      this.semanticElement = button;
-    } else if (this.semantic === "image") {
-      const image = document.createElement("image");
-      image.setAttribute("drawer-id", this.id);
-      image.setAttribute("alt", this.ariaLabel);
-      canvas.appendChild(image);
-
-      this.semanticElement = image;
-    }
-  }
-
-  addChild(polygon) {
-    this.children.push(polygon);
-    if (polygon.semanticElement) {
-      this.semanticElement.appendChild(polygon.semanticElement);
-      polygon.onClick(this.onClickCallback);
-      polygon.onFocus(this.onClickCallback);
-    }
-  }
-
-  restoreElement() {
-    const restoredElement = this.canvas.querySelector(`[drawer-id=${this.id}]`);
-    this.semanticElement = restoredElement;
+  initializeDraw() {
+    context.beginPath();
   }
 
   /**
-   * Desassocia o path do canvas do seu elemento semântico.
-   *
-   * @param {boolean} remove - se true, o elemento semântico é removido da subDOM.
+   * Cria o elemento da subDOM automaticamente
    */
-  clearElementPath(remove) {
-    if (remove) {
-      this.canvas.querySelector(`[drawer-id=${this.id}]`)?.remove();
+  autoSubDOM() {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+
+    if (_element.inSubDOM) return;
+
+    const element = document.createElement(this.tag);
+    element.setAttribute("drawer-id", this.id);
+
+    if (this.tag === "button") {
+      element.setAttribute("type", "button");
     }
-    console.log("aqui");
-    const index = window.Drawer.elements.indexOf(this.id);
-    window.Drawer.elements.splice(index, 1);
-    this.onClick(() => {});
+
+    if (this.ariaLabel) element.setAttribute("alt", this.ariaLabel);
+
+    // TODO: check this!
+    // button.textContent = this.ariaLabel;
+
+    canvas.appendChild(element);
+
+    this.element = button;
   }
+
+  addChild(graphic) {
+    this.children.push(graphic);
+
+    if (graphic.element) {
+      this.semanticElement.appendChild(graphic.element);
+      graphic.onClick(this.onClickCallback);
+      graphic.onFocus(this.onFocusCallback);
+    }
+  }
+
+  restoreElement() {}
 
   /**
    * Associa o path do canvas a um elemento da subDOM.
@@ -131,23 +154,22 @@ class Polygon {
    * @returns
    */
   setElementPath(element) {
-    // if (window.Drawer.elements.indexOf(this.id) !== -1) {
-    // console.error(`#${this.id} is already an semantic element!`);
-    // return;
-    // }
-
     if (!isElementChildOfCanvas(this.canvas, element)) {
-      console.error("Element must be a child of the canvas!");
-      return;
+      throw "Element must be a child of the canvas!";
     }
+
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+
+    if (_element.inSubDOM) return;
 
     element.setAttribute("drawer-id", this.id);
     element.setAttribute("alt", this.ariaLabel);
-    this.semanticElement = element;
-    window.Drawer.elements.push(this.id);
-    this.draw();
-    this.onClick(element.onclick);
-    this.onFocus(element.onfocus);
+
+    this.element = element;
+    this.autoSemantic = false;
+    if (_element) _element.inSubDOM = true;
   }
 
   /**
@@ -158,128 +180,38 @@ class Polygon {
    *
    * @returns
    */
-  draw(autoSemantic = true) {
-    this.path.closePath();
+  draw(undoFocusRing = false) {
+    if (!undoFocusRing) this.path.closePath();
 
-    if (this.focable) {
-      // TODO: generalizar
-      var width = this.canvas.width;
-      var height = this.canvas.height;
-      var existingImageData = this.context.getImageData(0, 0, width, height);
-      var existingData = existingImageData.data;
+    // TODO: autosemantic
+    if (this.autoSemantic) this.autoSubDOM();
 
-      var imageData = this.context.createImageData(width, height);
-      var data = imageData.data;
+    // coloring the path
+    var width = this.canvas.width;
+    var height = this.canvas.height;
+    var existingImageData = this.context.getImageData(0, 0, width, height);
+    var existingData = existingImageData.data;
 
-      for (var i = 0; i < existingData.length; i++) {
-        data[i] = existingData[i];
-      }
+    var imageData = this.context.createImageData(width, height);
+    var data = imageData.data;
 
-      for (var y = 0; y < height; y++) {
-        for (var x = 0; x < width; x++) {
-          var index = (y * width + x) * 4;
-          if (this.context.isPointInPath(this.path, x, y)) {
-            data[index] = 255;
-            data[index + 1] = 0;
-            data[index + 2] = 0;
-            data[index + 3] = 255;
-          }
-        }
-      }
-
-      context.putImageData(imageData, 0, 0);
+    for (var i = 0; i < existingData.length; i++) {
+      data[i] = existingData[i];
     }
 
-    if (!autoSemantic) return;
-
-    // evita recriação dos elementos da subDOM
-    // pois essa recriação poderia ser confusa ao usuário
-    if (window.Drawer.elements.indexOf(this.id) !== -1) {
-      this.restoreElement();
-      if (window.Drawer.focusedElement === this.semanticElement) {
-        this.semanticElement.focus();
-      }
-
-      return;
-    }
-
-    this.createSemantic();
-
-    window.Drawer.elements.push(this.id);
-  }
-
-  drawStroke() {
-    const imgData = this.context.getImageData(
-      0,
-      0,
-      this.canvas.width,
-      this.canvas.height
-    );
-    const data = imgData.data;
-
-    for (let y = 0; y < this.canvas.height; y++) {
-      for (let x = 0; x < this.canvas.width; x++) {
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        var index = (y * width + x) * 4;
         if (this.context.isPointInPath(this.path, x, y)) {
-          const positions = [
-            { x: x - 1, y: y, type: "left" },
-            { x: x + 1, y: y, type: "right" },
-
-            { x: x, y: y - 1, type: "top" },
-            { x: x, y: y + 1, type: "bottom" },
-
-            { x: x - 1, y: y - 1, type: "left-top" },
-            { x: x + 1, y: y - 1, type: "right-top" },
-            { x: x - 1, y: y + 1, type: "left-bottom" },
-            { x: x + 1, y: y + 1, type: "right-bottoms" },
-          ];
-
-          positions.forEach((vizi) => {
-            if (!this.context.isPointInPath(this.path, vizi.x, vizi.y)) {
-              let index = (y * this.canvas.width + x) * 4;
-              data[index] = 0;
-              data[index + 1] = 0;
-              data[index + 2] = 0;
-              data[index + 3] = 255;
-
-              if (vizi.type === "top") {
-                if (this.context.isPointInPath(this.path, x, y + 1)) {
-                  index = ((y + 1) * this.canvas.width + x) * 4;
-                  data[index] = 0;
-                  data[index + 1] = 0;
-                  data[index + 2] = 0;
-                  data[index + 3] = 255;
-                }
-              } else if (vizi.type === "left") {
-                if (this.context.isPointInPath(this.path, x + 1, y)) {
-                  index = (y * this.canvas.width + (x + 1)) * 4;
-                  data[index] = 0;
-                  data[index + 1] = 0;
-                  data[index + 2] = 0;
-                  data[index + 3] = 255;
-                }
-              } else if (vizi.type === "right") {
-                if (this.context.isPointInPath(this.path, x - 1, y)) {
-                  index = (y * this.canvas.width + (x - 1)) * 4;
-                  data[index] = 0;
-                  data[index + 1] = 0;
-                  data[index + 2] = 0;
-                  data[index + 3] = 255;
-                }
-              } else if (vizi.type === "bottom") {
-                if (this.context.isPointInPath(this.path, x, y - 1)) {
-                  index = ((y - 1) * this.canvas.width + x) * 4;
-                  data[index] = 0;
-                  data[index + 1] = 0;
-                  data[index + 2] = 0;
-                  data[index + 3] = 255;
-                }
-              }
-            }
-          });
+          data[index] = 255;
+          data[index + 1] = 0;
+          data[index + 2] = 0;
+          data[index + 3] = 255;
         }
       }
     }
-    this.context.putImageData(imgData, 0, 0);
+
+    context.putImageData(imageData, 0, 0);
   }
 
   /**
@@ -289,9 +221,9 @@ class Polygon {
    */
   onClick(callback) {
     this.onClickCallback = callback;
-    if (this.semanticElement) {
-      this.semanticElement.onclick = () => {
-        this.semanticElement.focus();
+    if (this.element) {
+      this.element.onclick = () => {
+        this.element.focus();
         this.onClickCallback();
       };
     }
@@ -316,40 +248,181 @@ class Polygon {
    * @param {Function} callback
    */
   onFocus(callback) {
-    if (!this.focable || !this.semanticElement) return;
+    if (!this.focable || !this.element) return;
     this.onFocusCallback = callback;
 
-    this.semanticElement.onfocus = () => {
-      this.drawStroke();
+    this.element.onfocus = () => {
+      this.drawFocusRing();
       this.onFocusCallback();
     };
 
     this.onBlur();
   }
 
-  onBlur() {
-    if (!this.focable || !this.semanticElement) return;
+  drawFocusRing() {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
 
-    this.semanticElement.onblur = () => {
-      this.draw();
+    const imgData = this.context.getImageData(
+      0,
+      0,
+      this.canvas.width,
+      this.canvas.height
+    );
+    const data = imgData.data;
+
+    for (let y = 0; y < this.canvas.height; y++) {
+      for (let x = 0; x < this.canvas.width; x++) {
+        const path = this.path;
+        if (this.context.isPointInPath(path, x, y)) {
+          const positions = [
+            { x: x - 1, y: y, type: "left" },
+            { x: x + 1, y: y, type: "right" },
+
+            { x: x, y: y - 1, type: "top" },
+            { x: x, y: y + 1, type: "bottom" },
+
+            { x: x - 1, y: y - 1, type: "left-top" },
+            { x: x + 1, y: y - 1, type: "right-top" },
+            { x: x - 1, y: y + 1, type: "left-bottom" },
+            { x: x + 1, y: y + 1, type: "right-bottoms" },
+          ];
+
+          positions.forEach((vizi) => {
+            if (!this.context.isPointInPath(path, vizi.x, vizi.y)) {
+              let index = (y * this.canvas.width + x) * 4;
+              data[index] = 0;
+              data[index + 1] = 0;
+              data[index + 2] = 0;
+              data[index + 3] = 255;
+
+              if (vizi.type === "top") {
+                if (this.context.isPointInPath(path, x, y + 1)) {
+                  index = ((y + 1) * this.canvas.width + x) * 4;
+                  data[index] = 0;
+                  data[index + 1] = 0;
+                  data[index + 2] = 0;
+                  data[index + 3] = 255;
+                }
+              } else if (vizi.type === "left") {
+                if (this.context.isPointInPath(path, x + 1, y)) {
+                  index = (y * this.canvas.width + (x + 1)) * 4;
+                  data[index] = 0;
+                  data[index + 1] = 0;
+                  data[index + 2] = 0;
+                  data[index + 3] = 255;
+                }
+              } else if (vizi.type === "right") {
+                if (this.context.isPointInPath(path, x - 1, y)) {
+                  index = (y * this.canvas.width + (x - 1)) * 4;
+                  data[index] = 0;
+                  data[index + 1] = 0;
+                  data[index + 2] = 0;
+                  data[index + 3] = 255;
+                }
+              } else if (vizi.type === "bottom") {
+                if (this.context.isPointInPath(path, x, y - 1)) {
+                  index = ((y - 1) * this.canvas.width + x) * 4;
+                  data[index] = 0;
+                  data[index + 1] = 0;
+                  data[index + 2] = 0;
+                  data[index + 3] = 255;
+                }
+              }
+            }
+          });
+        }
+      }
+    }
+    this.context.putImageData(imgData, 0, 0);
+  }
+
+  onBlur() {
+    if (!this.focable || !this.element) return;
+    this.element.onblur = () => {
+      this.draw(true);
     };
   }
 }
 
-const canvas = document.getElementsByTagName("canvas")[0];
-const context = canvas.getContext("2d");
 let squareX = 200;
 let squareY = 300;
 
-let squareX2 = 100;
-let squareY2 = 200;
+const canvas = document.getElementsByTagName("canvas")[0];
+const context = canvas.getContext("2d");
+
+// 1st case: with setElementPath
+// const Square = new Graphic({
+//   context,
+//   canvas,
+//   id: "teste",
+//   ariaLabel: "Aumentar",
+//   focable: true,
+// });
+
+// const path = Square.path;
+// path.lineTo(squareX, squareY);
+// path.lineTo(squareX + 60, squareY);
+// path.lineTo(squareX + 60, squareY - 60);
+// path.lineTo(squareX, squareY - 60);
+
+// const button = document.createElement("button");
+// const newContent = document.createTextNode("Hello, World!");
+// button.appendChild(newContent);
+
+// canvas.appendChild(button);
+// Square.setElementPath(button);
+// Square.draw();
+
+// Square.onFocus(() => {
+//   console.log("Focou");
+// });
+
+// Square.onClick(() => {
+//   console.log("Clicou");
+// });
+
+// 2nd case: without setElementPath
+// const Square = new Graphic({
+//   tag: "button",
+//   context,
+//   canvas,
+//   id: "teste",
+//   ariaLabel: "Aumentar",
+//   focable: true,
+// });
+
+// const path = Square.path;
+// path.lineTo(squareX, squareY);
+// path.lineTo(squareX + 60, squareY);
+// path.lineTo(squareX + 60, squareY - 60);
+// path.lineTo(squareX, squareY - 60);
+
+// Square.draw();
+
+// Square.onFocus(() => {
+//   console.log("Focou");
+// });
+
+// Square.onClick(() => {
+//   console.log("Clicou");
+// });
+
+const button = document.createElement("button");
+const newContent = document.createTextNode("Clique aqui!");
+button.appendChild(newContent);
 
 const render = () => {
   context.clearRect(0, 0, canvas.width, canvas.height);
 
-  /////////////// CRIANDO SQUARE 1
-
-  const Square = new Polygon("button", context, canvas, "teste", "Aumentar");
+  const Square = new Graphic({
+    context,
+    canvas,
+    id: "teste",
+    ariaLabel: "Aumentar",
+    focable: true,
+  });
 
   const path = Square.path;
   path.lineTo(squareX, squareY);
@@ -357,42 +430,17 @@ const render = () => {
   path.lineTo(squareX + 60, squareY - 60);
   path.lineTo(squareX, squareY - 60);
 
-  const newDiv = document.createElement("div");
-  const newContent = document.createTextNode("Hello, World!");
-  newDiv.appendChild(newContent);
-  newDiv.onclick = () => {
-    console.log("hihi");
-  };
+  canvas.appendChild(button);
+  Square.setElementPath(button);
+  Square.draw();
 
-  canvas.appendChild(newDiv);
-  Square.setElementPath(newDiv);
+  Square.onFocus(() => {
+    console.log("Focou");
+  });
 
-  /////////////// CRIANDO SQUARE 2
-
-  let squareX2 = 100;
-  let squareY2 = 200;
-
-  const Square2 = new Polygon("button", context, canvas, "test2", "Aumentar 2");
-
-  const path2 = Square2.path;
-  path2.lineTo(squareX2, squareY2);
-  path2.lineTo(squareX2 + 60, squareY2);
-  path2.lineTo(squareX2 + 60, squareY2 - 60);
-  path2.lineTo(squareX2, squareY2 - 60);
-
-  var _newDiv = document.createElement("div");
-  var _newContent = document.createTextNode("Hello, World 2!");
-  _newDiv.appendChild(_newContent);
-  _newDiv.onclick = () => {
-    console.log("lalla");
-  };
-
-  canvas.appendChild(_newDiv);
-  Square2.setElementPath(_newDiv);
-
-  ////////////// CRIANDO RELAÇÃO DE PARENTESCO
-
-  // Square.addChild(Square2);
+  Square.onClick(() => {
+    console.log("Clicou");
+  });
 };
 
 render();
