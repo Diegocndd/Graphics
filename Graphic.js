@@ -454,82 +454,133 @@ class GraphicText extends Graphic {
   }
 }
 
-//////////////////////////////////////////////////////
+let squareX = 200;
+let squareY = 300;
 
-const canvas = document.getElementById("myCanvas");
-const ctx = canvas.getContext("2d");
+const canvas = document.getElementsByTagName("canvas")[0];
+const context = canvas.getContext("2d");
 
-const data = [100, 200, 150, 250, 300];
-const labels = ["Junho", "Julho", "Agosto", "Setembro", "Outubro"];
-const barWidth = 40;
-const barSpacing = 50;
-const chartHeight = canvas.height;
-const chartWidth = canvas.width;
+// 1st case: with setElementPath
+// const Square = new Graphic({
+//   context,
+//   canvas,
+//   id: "teste",
+//   ariaLabel: "Aumentar",
+//   focable: true,
+// });
 
-ctx.beginPath();
-ctx.moveTo(50, 10);
-ctx.lineTo(50, chartHeight - 40);
-ctx.lineTo(chartWidth - 10, chartHeight - 40);
-ctx.stroke();
+// const path = Square.path;
+// path.lineTo(squareX, squareY);
+// path.lineTo(squareX + 60, squareY);
+// path.lineTo(squareX + 60, squareY - 60);
+// path.lineTo(squareX, squareY - 60);
 
-for (let i = 0; i < data.length; i++) {
-  const barHeight = data[i];
-  const x = 60 + i * barSpacing;
-  const y = chartHeight - barHeight - 40;
+// const button = document.createElement("button");
+// const newContent = document.createTextNode("Hello, World!");
+// button.appendChild(newContent);
 
-  const bar = new Graphic({
+// canvas.appendChild(button);
+// Square.setElementPath(button);
+// Square.draw();
+
+// Square.onFocus(() => {
+//   console.log("Focou");
+// });
+
+// Square.onClick(() => {
+//   console.log("Clicou");
+// });
+
+// 2nd case: without setElementPath
+// const Square = new Graphic({
+//   tag: "button",
+//   context,
+//   canvas,
+//   id: "teste",
+//   ariaLabel: "Aumentar",
+//   focable: true,
+// });
+
+// const path = Square.path;
+// path.lineTo(squareX, squareY);
+// path.lineTo(squareX + 60, squareY);
+// path.lineTo(squareX + 60, squareY - 60);
+// path.lineTo(squareX, squareY - 60);
+
+// Square.draw();
+
+// Square.onFocus(() => {
+//   console.log("Focou");
+// });
+
+// Square.onClick(() => {
+//   console.log("Clicou");
+// });
+
+const button = document.createElement("button");
+const newContent = document.createTextNode("Clique aqui!");
+button.appendChild(newContent);
+canvas.appendChild(button);
+
+const render = () => {
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  const Square = new Graphic({
+    context,
+    canvas,
     tag: "button",
-    context: ctx,
-    canvas: canvas,
-    id: `barra-${i}`,
+    id: "teste",
+    ariaLabel: "Aumentar",
     focable: true,
-    pathColor: "#0000FF",
+    pathColor: "#FF0",
   });
 
-  const path = bar.path;
-  path.rect(x, y, barWidth, barHeight);
+  const path = Square.path;
+  path.lineTo(squareX, squareY);
+  path.lineTo(squareX + 60, squareY);
+  path.lineTo(squareX + 60, squareY - 60);
+  path.lineTo(squareX, squareY - 60);
 
-  bar.draw();
-  bar.onFocus(() => {});
+  Square.setElementPath(button);
+  Square.draw();
 
-  const label = new GraphicText({
-    tag: "span",
-    context: ctx,
-    canvas: canvas,
-    id: `label-${i}`,
-    focable: true,
-    color: "#000000",
-    content: labels[i],
-    align: "center",
-    x: x + barWidth / 2,
-    y: chartHeight - 20,
+  Square.onFocus(() => {
+    console.log("Focou");
   });
 
-  label.draw();
-
-  label.onFocus(() => {
-    console.log("label");
+  Square.onClick(() => {
+    console.log("Clicou");
   });
+};
+
+render();
+
+function moveSquare(direction) {
+  console.log(direction);
+  switch (direction) {
+    case "ArrowUp":
+      squareY -= 10;
+      render();
+
+      break;
+    case "ArrowDown":
+      squareY += 10;
+      render();
+
+      break;
+    case "ArrowLeft":
+      squareX -= 10;
+      render();
+
+      break;
+    case "ArrowRight":
+      squareX += 10;
+      render();
+
+      break;
+  }
 }
 
-for (let i = 0; i < data.length; i++) {
-  const x = 60 + i * barSpacing;
-  const y = chartHeight - data[i] - 50;
-
-  const label = new GraphicText({
-    tag: "span",
-    context: ctx,
-    canvas: canvas,
-    id: `data-${i}`,
-    focable: true,
-    color: "#000000",
-    content: data[i],
-    align: "center",
-    x: x + barWidth / 2,
-    y: y,
-  });
-
-  label.draw();
-
-  label.onFocus(() => {});
-}
+window.addEventListener("keydown", (event) => {
+  moveSquare(event.key);
+});
