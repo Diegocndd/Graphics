@@ -179,11 +179,10 @@ class Graphic {
 
     const element = document.createElement(this.tag);
     element.setAttribute("drawer-id", this.id);
-    element.setAttribute("tabIndex", 0);
 
-    if (this.tag === "button") {
-      element.setAttribute("type", "button");
-    }
+    if (this.focable) element.setAttribute("tabIndex", 0);
+
+    if (this.tag === "button") element.setAttribute("type", "button");
 
     if (text) element.textContent = text;
 

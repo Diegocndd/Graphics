@@ -128,11 +128,35 @@ class Graphic {
         inSubDOM: false,
         path: this.path,
         clickable: this.tag === "button",
+        onClick: null,
       });
 
       this.setCanvasMouseEvents();
       this.initializeDraw();
     }
+  }
+
+  onClickCanvas(event) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    const clickableElements = window.Drawer.elements.filter(
+      (element) => element.clickable
+    );
+
+    let clicked = false;
+
+    // apenas o ultimo elemento deve clicado em caso de overlapping
+    clickableElements.reverse().forEach(({ path, onClick }) => {
+      if (!clicked && this.context.isPointInPath(path, mouseX, mouseY)) {
+        onClick();
+        clicked = true;
+      }
+    });
+
+    // evitar repetir o evento para os outros elementos
+    event.stopImmediatePropagation();
   }
 
   setCanvasMouseEvents() {
@@ -160,6 +184,11 @@ class Graphic {
           if (outsideAllButtons) canvas.style.cursor = "auto";
         }.bind(this)
       );
+
+      this.x = this.onClickCanvas.bind(this);
+      this.canvas.removeEventListener("click", this.x);
+
+      this.canvas.addEventListener("click", this.x);
     }
   }
 
@@ -209,6 +238,34 @@ class Graphic {
 
   restoreElement() {}
 
+  elementAlreadyHaveOnClick() {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+    return _element.hasOnClick;
+  }
+
+  setHaveOnClick(onClick = true) {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+    _element.hasOnClick = onClick;
+  }
+
+  setOnClick(onClick) {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+    _element.onClick = onClick;
+  }
+
+  setPath() {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+    _element.path = this.path;
+  }
+
   /**
    * Associa o path do canvas a um elemento da subDOM.
    *
@@ -244,7 +301,7 @@ class Graphic {
    */
   draw(undoFocusRing = false) {
     if (!undoFocusRing) this.path.closePath();
-
+    this.setPath();
     // TODO: autosemantic
     if (this.autoSemantic) this.autoSubDOM();
 
@@ -283,6 +340,7 @@ class Graphic {
    */
   onClick(callback) {
     this.onClickCallback = callback;
+
     if (this.element) {
       this.element.onclick = () => {
         this.element.focus();
@@ -290,18 +348,22 @@ class Graphic {
       };
     }
 
-    this.canvas.addEventListener(
-      "click",
-      function (event) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
+    // if (this.elementAlreadyHaveOnClick()) return;
 
-        if (this.context.isPointInPath(this.path, mouseX, mouseY)) {
-          callback();
-        }
-      }.bind(this)
-    );
+    this.setOnClick(callback);
+
+    // this.canvas.addEventListener(
+    //   "click",
+    //   function (event) {
+    //     const rect = canvas.getBoundingClientRect();
+    //     const mouseX = event.clientX - rect.left;
+    //     const mouseY = event.clientY - rect.top;
+
+    //     if (this.context.isPointInPath(this.path, mouseX, mouseY)) {
+    //       callback();
+    //     }
+    //   }.bind(this)
+    // );
   }
 
   /**
@@ -457,6 +519,9 @@ class GraphicText extends Graphic {
 let squareX = 200;
 let squareY = 300;
 
+let squareX2 = 100;
+let squareY2 = 100;
+
 const canvas = document.getElementsByTagName("canvas")[0];
 const context = canvas.getContext("2d");
 
@@ -522,6 +587,10 @@ const newContent = document.createTextNode("Clique aqui!");
 button.appendChild(newContent);
 canvas.appendChild(button);
 
+const button2 = document.createElement("button");
+button2.appendChild(document.createTextNode("Clique aqui 2!"));
+canvas.appendChild(button2);
+
 const render = () => {
   context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -549,7 +618,34 @@ const render = () => {
   });
 
   Square.onClick(() => {
-    console.log("Clicou");
+    console.log("Clicou no amarelo");
+  });
+
+  const Square2 = new Graphic({
+    context,
+    canvas,
+    tag: "button",
+    id: "teste2",
+    ariaLabel: "Diminuir",
+    focable: true,
+    pathColor: "#F00",
+  });
+
+  const path2 = Square2.path;
+  path2.lineTo(squareX2, squareY2);
+  path2.lineTo(squareX2 + 60, squareY2);
+  path2.lineTo(squareX2 + 60, squareY2 - 60);
+  path2.lineTo(squareX2, squareY2 - 60);
+
+  Square2.setElementPath(button2);
+  Square2.draw();
+
+  Square2.onFocus(() => {
+    console.log("Focou");
+  });
+
+  Square2.onClick(() => {
+    console.log("Clicou no vermelho");
   });
 };
 

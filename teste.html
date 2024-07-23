@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      #canvas {
+        border: 1px solid black;
+        display: block;
+        margin: 20px auto;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" width="600" height="400">
+      <button id="button1">Continue</button>
+      <button id="button2">Quit</button>
+      <span>Olá!</span>
+    </canvas>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const button1 = document.getElementById("button1");
+      const button2 = document.getElementById("button2");
+
+      // Initial positions
+      let button1X = 20;
+      let button1Y = 20;
+      let button2X = 20;
+      let button2Y = 80;
+
+      document.addEventListener("focus", redraw, true);
+      document.addEventListener("blur", redraw, true);
+      button1.onclick = () => {
+        console.log("oioio");
+      };
+      canvas.addEventListener("click", handleClick, false);
+      document.addEventListener("keydown", handleKeydown, false);
+
+      redraw();
+
+      function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawButton(button1, button1X, button1Y);
+        drawButton(button2, button2X, button2Y);
+      }
+
+      function handleClick(e) {
+        // Calculate click coordinates
+        const x = e.clientX - canvas.offsetLeft;
+        const y = e.clientY - canvas.offsetTop;
+
+        // Focus button1, if appropriate
+        if (isPointInButton(x, y, button1X, button1Y)) {
+          button1.focus();
+        }
+
+        // Focus button2, if appropriate
+        if (isPointInButton(x, y, button2X, button2Y)) {
+          button2.focus();
+        }
+      }
+
+      function handleKeydown(e) {
+        const step = 10; // Number of pixels to move the button
+
+        switch (e.key) {
+          case "ArrowUp":
+            button1Y -= step;
+            break;
+          case "ArrowDown":
+            button1Y += step;
+            break;
+          case "ArrowLeft":
+            button1X -= step;
+            break;
+          case "ArrowRight":
+            button1X += step;
+            break;
+        }
+        redraw();
+      }
+
+      function drawButton(el, x, y) {
+        const active = document.activeElement === el;
+        const width = 150;
+        const height = 40;
+
+        // Button background
+        ctx.fillStyle = active ? "pink" : "lightgray";
+        ctx.fillRect(x, y, width, height);
+
+        // Button text
+        ctx.font = "15px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = active ? "blue" : "black";
+        ctx.fillText(el.textContent, x + width / 2, y + height / 2);
+
+        // Define clickable area
+        ctx.beginPath();
+        ctx.rect(x, y, width, height);
+
+        // Draw focus ring, if appropriate
+        ctx.drawFocusIfNeeded(el);
+      }
+
+      function isPointInButton(x, y, buttonX, buttonY) {
+        const width = 150;
+        const height = 40;
+        return (
+          x >= buttonX &&
+          x <= buttonX + width &&
+          y >= buttonY &&
+          y <= buttonY + height
+        );
+      }
+    </script>
+  </body>
+</html>
