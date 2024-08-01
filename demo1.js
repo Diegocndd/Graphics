@@ -128,11 +128,35 @@ class Graphic {
         inSubDOM: false,
         path: this.path,
         clickable: this.tag === "button",
+        onClick: null,
       });
 
       this.setCanvasMouseEvents();
       this.initializeDraw();
     }
+  }
+
+  onClickCanvas(event) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    const clickableElements = window.Drawer.elements.filter(
+      (element) => element.clickable
+    );
+
+    let clicked = false;
+
+    // apenas o ultimo elemento deve clicado em caso de overlapping
+    clickableElements.reverse().forEach(({ path, onClick }) => {
+      if (!clicked && this.context.isPointInPath(path, mouseX, mouseY)) {
+        onClick();
+        clicked = true;
+      }
+    });
+
+    // evitar repetir o evento para os outros elementos
+    event.stopImmediatePropagation();
   }
 
   setCanvasMouseEvents() {
@@ -160,6 +184,11 @@ class Graphic {
           if (outsideAllButtons) canvas.style.cursor = "auto";
         }.bind(this)
       );
+
+      this.x = this.onClickCanvas.bind(this);
+      this.canvas.removeEventListener("click", this.x);
+
+      this.canvas.addEventListener("click", this.x);
     }
   }
 
@@ -179,10 +208,11 @@ class Graphic {
 
     const element = document.createElement(this.tag);
     element.setAttribute("drawer-id", this.id);
+    element.setAttribute("tabIndex", 0);
 
-    if (this.focable) element.setAttribute("tabIndex", 0);
-
-    if (this.tag === "button") element.setAttribute("type", "button");
+    if (this.tag === "button") {
+      element.setAttribute("type", "button");
+    }
 
     if (text) element.textContent = text;
 
@@ -207,6 +237,34 @@ class Graphic {
   }
 
   restoreElement() {}
+
+  elementAlreadyHaveOnClick() {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+    return _element.hasOnClick;
+  }
+
+  setHaveOnClick(onClick = true) {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+    _element.hasOnClick = onClick;
+  }
+
+  setOnClick(onClick) {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+    _element.onClick = onClick;
+  }
+
+  setPath() {
+    const _element = window.Drawer.elements.find(
+      (element) => element.id === this.id
+    );
+    _element.path = this.path;
+  }
 
   /**
    * Associa o path do canvas a um elemento da subDOM.
@@ -243,7 +301,7 @@ class Graphic {
    */
   draw(undoFocusRing = false) {
     if (!undoFocusRing) this.path.closePath();
-
+    this.setPath();
     // TODO: autosemantic
     if (this.autoSemantic) this.autoSubDOM();
 
@@ -282,6 +340,7 @@ class Graphic {
    */
   onClick(callback) {
     this.onClickCallback = callback;
+
     if (this.element) {
       this.element.onclick = () => {
         this.element.focus();
@@ -289,18 +348,22 @@ class Graphic {
       };
     }
 
-    this.canvas.addEventListener(
-      "click",
-      function (event) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
+    // if (this.elementAlreadyHaveOnClick()) return;
 
-        if (this.context.isPointInPath(this.path, mouseX, mouseY)) {
-          callback();
-        }
-      }.bind(this)
-    );
+    this.setOnClick(callback);
+
+    // this.canvas.addEventListener(
+    //   "click",
+    //   function (event) {
+    //     const rect = canvas.getBoundingClientRect();
+    //     const mouseX = event.clientX - rect.left;
+    //     const mouseY = event.clientY - rect.top;
+
+    //     if (this.context.isPointInPath(this.path, mouseX, mouseY)) {
+    //       callback();
+    //     }
+    //   }.bind(this)
+    // );
   }
 
   /**
@@ -490,7 +553,9 @@ for (let i = 0; i < data.length; i++) {
 
   bar.draw();
   bar.onFocus(() => {});
-
+  bar.onClick(() => {
+    console.log(`clicou: ${i}`);
+  });
   const label = new GraphicText({
     tag: "span",
     context: ctx,
