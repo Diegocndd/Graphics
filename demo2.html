@@ -8,11 +8,18 @@
       canvas {
         border: 1px solid #000;
       }
+      #main {
+        padding-top: 4rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
     </style>
   </head>
   <body>
-    <canvas id="chartCanvas" width="800" height="500"></canvas>
-
+    <div id="main">
+      <canvas id="chartCanvas" width="800" height="500"></canvas>
+    </div>
     <script>
       const canvas = document.getElementById("chartCanvas");
       const ctx = canvas.getContext("2d");
