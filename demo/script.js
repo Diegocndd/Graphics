@@ -91,6 +91,7 @@ class Graphic {
     ariaLabel = "",
     focable = false,
     pathColor = "#000",
+    textContent,
     persistent = true,
   }) {
     if (!(canvas instanceof HTMLCanvasElement)) {
@@ -118,6 +119,8 @@ class Graphic {
     this.tag = tag;
     this.autoSemantic = true;
     this.focable = focable;
+    this.textContent = textContent;
+    this.persistent = persistent;
 
     const _element = window.Drawer.elements.find(
       (element) => element.id === this.id
@@ -134,6 +137,15 @@ class Graphic {
 
       this.setCanvasMouseEvents();
       this.initializeDraw();
+    }
+
+    if (!this.persistent) {
+      Array.from(this.canvas.children).forEach((child) => {
+        console.log(child.getAttribute("drawer-id"));
+        if (child.getAttribute("drawer-id") === this.id) {
+          this.canvas.removeChild(child);
+        }
+      });
     }
   }
 
@@ -205,7 +217,7 @@ class Graphic {
       (element) => element.id === this.id
     );
 
-    if (_element.inSubDOM) return;
+    if (this.persistent && _element.inSubDOM) return;
 
     const element = document.createElement(this.tag);
     element.setAttribute("drawer-id", this.id);
@@ -217,13 +229,16 @@ class Graphic {
 
     if (text) element.textContent = text;
 
-    if (this.ariaLabel) element.setAttribute("alt", this.ariaLabel);
+    if (this.ariaLabel) {
+      element.setAttribute("alt", this.ariaLabel);
+      if (!this.textContent) element.textContent = this.ariaLabel;
+    }
 
     // TODO: check this!
     // button.textContent = this.ariaLabel;
 
     canvas.appendChild(element);
-
+    if (this.persistent) _element.inSubDOM = true;
     this.element = element;
   }
 
@@ -254,17 +269,23 @@ class Graphic {
   }
 
   setOnClick(onClick) {
-    const _element = window.Drawer.elements.find(
-      (element) => element.id === this.id
-    );
-    _element.onClick = onClick;
+    if (this.persistent) {
+      const _element = window.Drawer.elements.find(
+        (element) => element.id === this.id
+      );
+      _element.onClick = onClick;
+    } else {
+      this.element.onClick = onClick;
+    }
   }
 
   setPath() {
-    const _element = window.Drawer.elements.find(
-      (element) => element.id === this.id
-    );
-    _element.path = this.path;
+    if (this.persistent) {
+      const _element = window.Drawer.elements.find(
+        (element) => element.id === this.id
+      );
+      _element.path = this.path;
+    }
   }
 
   /**
@@ -292,6 +313,30 @@ class Graphic {
     if (_element) _element.inSubDOM = true;
   }
 
+  addTextContent({
+    content,
+    x,
+    y,
+    color = "#FFF",
+    textAlign = "left",
+    textBaseline = "middle",
+  }) {
+    if (!content) {
+      throw "Text content is required!";
+    }
+
+    if (x === undefined || y === undefined) {
+      throw "X and Y ar required for text content!";
+    }
+
+    this.context.fillStyle = color;
+    this.context.textAlign = textAlign;
+    this.context.textBaseline = textBaseline;
+
+    ctx.fillText(content, x, y);
+    if (this.element) this.element.textContent = content;
+  }
+
   /**
    * Desenha o path no canvas
    *
@@ -301,12 +346,22 @@ class Graphic {
    * @returns
    */
   draw(undoFocusRing = false) {
-    if (!undoFocusRing) this.path.closePath();
+    if (!undoFocusRing) {
+      this.path.closePath();
+    }
+
     this.setPath();
 
-    if (this.autoSemantic) this.autoSubDOM();
+    // TODO: autosemantic
+    if (this.autoSemantic) {
+      if (!this.persistent && undoFocusRing) {
+        // do nothing
+      } else {
+        this.autoSubDOM();
+      }
+    }
 
-    // colorindo o path
+    // coloring the path
     var width = this.canvas.width;
     var height = this.canvas.height;
     var existingImageData = this.context.getImageData(0, 0, width, height);
@@ -332,6 +387,10 @@ class Graphic {
     }
 
     this.context.putImageData(imageData, 0, 0);
+
+    if (this.textContent && Object.keys(this.textContent).length > 0) {
+      this.addTextContent(this.textContent);
+    }
   }
 
   /**
@@ -517,85 +576,128 @@ class GraphicText extends Graphic {
   }
 }
 
-//////////////////////////////////////////////////////
+////////////////////////////////////////
 
-const canvas = document.getElementById("myCanvas");
+const canvas = document.getElementById("chartCanvas");
 const ctx = canvas.getContext("2d");
 
-const data = [100, 200, 150, 250, 300];
-const labels = ["Junho", "Julho", "Agosto", "Setembro", "Outubro"];
-const barWidth = 40;
-const barSpacing = 50;
-const chartHeight = canvas.height;
-const chartWidth = canvas.width;
+const chartWidth = canvas.width - 100;
+const chartHeight = canvas.height - 100;
+const barWidth = 50;
+const barSpacing = 70;
+const datasets = [
+  [12, 45, 30, 11, 50, 78], // Dataset 1
+  [80, 30, 20, 50, 10, 13], // Dataset 2
+];
+const labels = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho"];
 
-ctx.beginPath();
-ctx.moveTo(50, 10);
-ctx.lineTo(50, chartHeight - 40);
-ctx.lineTo(chartWidth - 10, chartHeight - 40);
-ctx.stroke();
+let currentDataset = 0;
 
-for (let i = 0; i < data.length; i++) {
-  const barHeight = data[i];
-  const x = 60 + i * barSpacing;
-  const y = chartHeight - barHeight - 40;
+function drawChart() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const bar = new Graphic({
+  const maxValue = Math.max(...datasets.flat()) + 10; // Adding some margin
+  const scaleFactor = (chartHeight - 20) / maxValue;
+
+  // Desenho dos eixos
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  // Eixo x
+  ctx.moveTo(50, canvas.height - 50);
+  ctx.lineTo(canvas.width - 50, canvas.height - 50);
+  // Eixo y
+  ctx.moveTo(50, canvas.height - 50);
+  ctx.lineTo(50, 50);
+  ctx.stroke();
+
+  datasets[currentDataset].forEach((value, index) => {
+    const bar = new Graphic({
+      tag: "button",
+      context: ctx,
+      canvas,
+      id: `bar-${index}`,
+      ariaLabel: `Barra ${index}`,
+      focable: true,
+      pathColor: "#4CAF50",
+      persistent: false,
+    });
+
+    const x = 50 + index * barSpacing;
+    const y = canvas.height - 50 - value * scaleFactor;
+
+    const path = bar.path;
+    path.rect(x, y, barWidth, canvas.height - 50 - y);
+
+    bar.draw();
+    bar.onFocus(() => {
+      console.log("focado");
+    });
+    bar.onClick(() => {
+      console.log("clicou");
+    });
+  });
+
+  // Desenho das labels
+  ctx.fillStyle = "#000";
+  labels.forEach((label, index) => {
+    const x =
+      50 + index * barSpacing + barWidth / 2 - ctx.measureText(label).width / 2;
+    ctx.fillText(label, x, canvas.height - 20);
+  });
+
+  // Desenho das labels do eixo y
+  ctx.textAlign = "right";
+  for (let i = 0; i <= maxValue; i += 10) {
+    const y = canvas.height - 50 - i * scaleFactor; // Apply scale factor
+    ctx.fillText(i, 45, y + 5);
+  }
+
+  // Desenho dos botões
+  drawButton(50, 10, "Anterior").onClick(() => {
+    changeDataset(-1);
+  });
+  drawButton(150, 10, "Próximo").onClick(() => {
+    changeDataset(1);
+  });
+}
+
+function drawButton(x, y, text) {
+  const textContent = {
+    textAlign: "center",
+    content: text,
+    x: x + 40,
+    y: y + 15,
+  };
+
+  const button = new Graphic({
     tag: "button",
     context: ctx,
     canvas: canvas,
-    id: `barra-${i}`,
+    id: `button=${text}`,
     focable: true,
-    pathColor: "#0000FF",
-    persistent: false,
+    pathColor: "#2196F3",
+    textContent,
   });
 
-  const path = bar.path;
-  path.rect(x, y, barWidth, barHeight);
+  const path = button.path;
 
-  bar.draw();
-  bar.onFocus(() => {});
-  bar.onClick(() => {
-    console.log(`clicou: ${i}`);
-  });
-  const label = new GraphicText({
-    tag: "span",
-    context: ctx,
-    canvas: canvas,
-    id: `label-${i}`,
-    focable: true,
-    color: "#000000",
-    content: labels[i],
-    align: "center",
-    x: x + barWidth / 2,
-    y: chartHeight - 20,
-  });
+  path.rect(x, y, 80, 30);
 
-  label.draw();
+  button.draw();
 
-  label.onFocus(() => {
-    console.log("label");
-  });
+  button.onFocus(() => {});
+
+  return button;
 }
 
-for (let i = 0; i < data.length; i++) {
-  const x = 60 + i * barSpacing;
-  const y = chartHeight - data[i] - 50;
-
-  const label = new GraphicText({
-    tag: "span",
-    context: ctx,
-    canvas: canvas,
-    id: `data-${i}`,
-    focable: true,
-    color: "#000000",
-    content: data[i],
-    align: "center",
-    x: x + barWidth / 2,
-    y: y,
-  });
-
-  label.draw();
-
-  label.onFocus(() => {});
+function isButtonClicked(x, y, mouseX, mouseY) {
+  return mouseX >= x && mouseX <= x + 80 && mouseY >= y && mouseY <= y + 30;
 }
+
+function changeDataset(direction) {
+  currentDataset =
+    (currentDataset + direction + datasets.length) % datasets.length;
+  drawChart();
+}
+drawChart();
