@@ -610,10 +610,10 @@
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
 
-      canvas.width = width * devicePixelRatio;
-      canvas.height = height * devicePixelRatio;
+      // canvas.width = width * devicePixelRatio;
+      // canvas.height = height * devicePixelRatio;
 
-      ctx.scale(devicePixelRatio, devicePixelRatio);
+      // ctx.scale(devicePixelRatio, devicePixelRatio);
 
       // Data
       const months = [
@@ -709,28 +709,45 @@
           path.rect(x - barWidth - barWidth / 2 - 8, y1, barWidth, height1);
           bar.draw();
 
-          // Dataset 2
-          if (dataset2[index] < 0) {
-            const y2 = zeroLine;
-            const height2 = Math.abs(dataset2[index] * 2);
-            ctx.fillStyle = datasetColor2;
-            ctx.fillRect(
-              x - barWidth - barWidth / 2 + 32,
-              y2,
-              barWidth,
-              height2
-            );
-          } else {
-            const y2 = zeroLine - dataset2[index] * 2;
-            const height2 = Math.abs(dataset2[index] * 2);
-            ctx.fillStyle = datasetColor2;
-            ctx.fillRect(
-              x - barWidth - barWidth / 2 + 32,
-              y2,
-              barWidth,
-              height2
-            );
-          }
+          ////// Dataset 2
+          const y2 =
+            dataset2[index] < 0 ? zeroLine : zeroLine - dataset2[index] * 2;
+          const height2 = Math.abs(dataset2[index] * 2);
+
+          const bar2 = new Graphic({
+            canvas: canvas,
+            context: ctx,
+            tag: "div",
+            focable: true,
+            id: `bar2-${index}`,
+            pathColor: datasetColor2,
+            ariaLabel: String(dataset2[index]),
+          });
+          const path2 = bar2.path;
+          path2.rect(x - barWidth - barWidth / 2 + 32, y2, barWidth, height2);
+          bar2.draw();
+
+          // if (dataset2[index] < 0) {
+          //   const y2 = zeroLine;
+          //   const height2 = Math.abs(dataset2[index] * 2);
+          //   ctx.fillStyle = datasetColor2;
+          //   ctx.fillRect(
+          //     x - barWidth - barWidth / 2 + 32,
+          //     y2,
+          //     barWidth,
+          //     height2
+          //   );
+          // } else {
+          //   const y2 = zeroLine - dataset2[index] * 2;
+          //   const height2 = Math.abs(dataset2[index] * 2);
+          //   ctx.fillStyle = datasetColor2;
+          //   ctx.fillRect(
+          //     x - barWidth - barWidth / 2 + 32,
+          //     y2,
+          //     barWidth,
+          //     height2
+          //   );
+          // }
         });
       }
 
