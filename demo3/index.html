@@ -112,8 +112,8 @@
 
       console.time("Execution Time");
 
-      // Graphic Class
-      class Graphic {
+      // Graphics Class
+      class Graphics {
         constructor({
           tag = "div",
           context,
@@ -582,7 +582,7 @@
         }
       }
 
-      class GraphicText extends Graphic {
+      class GraphicText extends Graphics {
         constructor({ content, color, x, y, align, ...props }) {
           super(props);
           this.content = content;
@@ -812,7 +812,7 @@
 
           const radius = 5;
 
-          const meteor = new Graphic({
+          const meteor = new Graphics({
             tag: "button",
             context: ctx,
             canvas,

@@ -81,8 +81,8 @@ window.Drawer.events = {
 };
 window.Drawer.focusedElement = null;
 
-// Graphic Class
-class Graphic {
+// Graphics Class
+class Graphics {
   constructor({
     tag = "div",
     context,
@@ -533,7 +533,7 @@ class Graphic {
   }
 }
 
-class GraphicText extends Graphic {
+class GraphicText extends Graphics {
   constructor({ content, color, x, y, align, ...props }) {
     super(props);
     this.content = content;

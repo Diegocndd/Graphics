@@ -96,8 +96,8 @@
       };
       window.Drawer.focusedElement = null;
 
-      // Graphic Class
-      class Graphic {
+      // Graphics Class
+      class Graphics {
         constructor({
           tag = "div",
           context,
@@ -553,7 +553,7 @@
         }
       }
 
-      class GraphicText extends Graphic {
+      class GraphicText extends Graphics {
         constructor({ content, color, x, y, align, ...props }) {
           super(props);
           this.content = content;
@@ -696,7 +696,7 @@
 
           const height1 = Math.abs(dataset1[index] * 2);
 
-          const bar = new Graphic({
+          const bar = new Graphics({
             canvas: canvas,
             context: ctx,
             tag: "div",
@@ -714,7 +714,7 @@
             dataset2[index] < 0 ? zeroLine : zeroLine - dataset2[index] * 2;
           const height2 = Math.abs(dataset2[index] * 2);
 
-          const bar2 = new Graphic({
+          const bar2 = new Graphics({
             canvas: canvas,
             context: ctx,
             tag: "div",

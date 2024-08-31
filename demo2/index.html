@@ -98,8 +98,8 @@
       };
       window.Drawer.focusedElement = null;
 
-      // Graphic Class
-      class Graphic {
+      // Graphics Class
+      class Graphics {
         constructor({
           tag = "div",
           context,
@@ -577,7 +577,7 @@
         }
       }
 
-      class GraphicText extends Graphic {
+      class GraphicText extends Graphics {
         constructor({ content, color, x, y, align, ...props }) {
           super(props);
           this.content = content;
@@ -663,7 +663,7 @@
 
         seats.forEach((seat, index) => {
           // Draw the seat
-          const _seat = new Graphic({
+          const _seat = new Graphics({
             tag: "button",
             context: ctx,
             canvas,
