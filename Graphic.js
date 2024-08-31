@@ -91,6 +91,8 @@ class Graphic {
     ariaLabel = "",
     focable = false,
     pathColor = "#000",
+    textContent,
+    persistent = true,
   }) {
     if (!(canvas instanceof HTMLCanvasElement)) {
       throw new Error("Invalid <canvas> element.");
@@ -117,12 +119,14 @@ class Graphic {
     this.tag = tag;
     this.autoSemantic = true;
     this.focable = focable;
+    this.textContent = textContent;
+    this.persistent = persistent;
 
     const _element = window.Drawer.elements.find(
       (element) => element.id === this.id
     );
 
-    if (!_element) {
+    if (persistent && !_element) {
       window.Drawer.elements.push({
         id: id,
         inSubDOM: false,
@@ -133,6 +137,15 @@ class Graphic {
 
       this.setCanvasMouseEvents();
       this.initializeDraw();
+    }
+
+    if (!this.persistent) {
+      Array.from(this.canvas.children).forEach((child) => {
+        console.log(child.getAttribute("drawer-id"));
+        if (child.getAttribute("drawer-id") === this.id) {
+          this.canvas.removeChild(child);
+        }
+      });
     }
   }
 
@@ -204,7 +217,7 @@ class Graphic {
       (element) => element.id === this.id
     );
 
-    if (_element.inSubDOM) return;
+    if (this.persistent && _element.inSubDOM) return;
 
     const element = document.createElement(this.tag);
     element.setAttribute("drawer-id", this.id);
@@ -216,13 +229,16 @@ class Graphic {
 
     if (text) element.textContent = text;
 
-    if (this.ariaLabel) element.setAttribute("alt", this.ariaLabel);
+    if (this.ariaLabel) {
+      element.setAttribute("alt", this.ariaLabel);
+      if (!this.textContent) element.textContent = this.ariaLabel;
+    }
 
     // TODO: check this!
     // button.textContent = this.ariaLabel;
 
     canvas.appendChild(element);
-
+    if (this.persistent) _element.inSubDOM = true;
     this.element = element;
   }
 
@@ -253,17 +269,23 @@ class Graphic {
   }
 
   setOnClick(onClick) {
-    const _element = window.Drawer.elements.find(
-      (element) => element.id === this.id
-    );
-    _element.onClick = onClick;
+    if (this.persistent) {
+      const _element = window.Drawer.elements.find(
+        (element) => element.id === this.id
+      );
+      _element.onClick = onClick;
+    } else {
+      this.element.onClick = onClick;
+    }
   }
 
   setPath() {
-    const _element = window.Drawer.elements.find(
-      (element) => element.id === this.id
-    );
-    _element.path = this.path;
+    if (this.persistent) {
+      const _element = window.Drawer.elements.find(
+        (element) => element.id === this.id
+      );
+      _element.path = this.path;
+    }
   }
 
   /**
@@ -291,6 +313,30 @@ class Graphic {
     if (_element) _element.inSubDOM = true;
   }
 
+  addTextContent({
+    content,
+    x,
+    y,
+    color = "#FFF",
+    textAlign = "left",
+    textBaseline = "middle",
+  }) {
+    if (!content) {
+      throw "Text content is required!";
+    }
+
+    if (x === undefined || y === undefined) {
+      throw "X and Y ar required for text content!";
+    }
+
+    this.context.fillStyle = color;
+    this.context.textAlign = textAlign;
+    this.context.textBaseline = textBaseline;
+
+    ctx.fillText(content, x, y);
+    if (this.element) this.element.textContent = content;
+  }
+
   /**
    * Desenha o path no canvas
    *
@@ -300,10 +346,20 @@ class Graphic {
    * @returns
    */
   draw(undoFocusRing = false) {
-    if (!undoFocusRing) this.path.closePath();
+    if (!undoFocusRing) {
+      this.path.closePath();
+    }
+
     this.setPath();
+
     // TODO: autosemantic
-    if (this.autoSemantic) this.autoSubDOM();
+    if (this.autoSemantic) {
+      if (!this.persistent && undoFocusRing) {
+        // do nothing
+      } else {
+        this.autoSubDOM();
+      }
+    }
 
     // coloring the path
     var width = this.canvas.width;
@@ -331,6 +387,14 @@ class Graphic {
     }
 
     this.context.putImageData(imageData, 0, 0);
+
+    if (this.textContent && Object.keys(this.textContent).length > 0) {
+      this.addTextContent(this.textContent);
+    }
+
+    if (this.focable) {
+      this.onFocus(() => {});
+    }
   }
 
   /**
@@ -515,168 +579,3 @@ class GraphicText extends Graphic {
     };
   }
 }
-
-let squareX = 200;
-let squareY = 300;
-
-let squareX2 = 100;
-let squareY2 = 100;
-
-const canvas = document.getElementsByTagName("canvas")[0];
-const context = canvas.getContext("2d");
-
-// 1st case: with setElementPath
-// const Square = new Graphic({
-//   context,
-//   canvas,
-//   id: "teste",
-//   ariaLabel: "Aumentar",
-//   focable: true,
-// });
-
-// const path = Square.path;
-// path.lineTo(squareX, squareY);
-// path.lineTo(squareX + 60, squareY);
-// path.lineTo(squareX + 60, squareY - 60);
-// path.lineTo(squareX, squareY - 60);
-
-// const button = document.createElement("button");
-// const newContent = document.createTextNode("Hello, World!");
-// button.appendChild(newContent);
-
-// canvas.appendChild(button);
-// Square.setElementPath(button);
-// Square.draw();
-
-// Square.onFocus(() => {
-//   console.log("Focou");
-// });
-
-// Square.onClick(() => {
-//   console.log("Clicou");
-// });
-
-// 2nd case: without setElementPath
-// const Square = new Graphic({
-//   tag: "button",
-//   context,
-//   canvas,
-//   id: "teste",
-//   ariaLabel: "Aumentar",
-//   focable: true,
-// });
-
-// const path = Square.path;
-// path.lineTo(squareX, squareY);
-// path.lineTo(squareX + 60, squareY);
-// path.lineTo(squareX + 60, squareY - 60);
-// path.lineTo(squareX, squareY - 60);
-
-// Square.draw();
-
-// Square.onFocus(() => {
-//   console.log("Focou");
-// });
-
-// Square.onClick(() => {
-//   console.log("Clicou");
-// });
-
-const button = document.createElement("button");
-const newContent = document.createTextNode("Clique aqui!");
-button.appendChild(newContent);
-canvas.appendChild(button);
-
-const button2 = document.createElement("button");
-button2.appendChild(document.createTextNode("Clique aqui 2!"));
-canvas.appendChild(button2);
-
-const render = () => {
-  context.clearRect(0, 0, canvas.width, canvas.height);
-
-  const Square = new Graphic({
-    context,
-    canvas,
-    tag: "button",
-    id: "teste",
-    ariaLabel: "Aumentar",
-    focable: true,
-    pathColor: "#FF0",
-  });
-
-  const path = Square.path;
-  path.lineTo(squareX, squareY);
-  path.lineTo(squareX + 60, squareY);
-  path.lineTo(squareX + 60, squareY - 60);
-  path.lineTo(squareX, squareY - 60);
-
-  Square.setElementPath(button);
-  Square.draw();
-
-  Square.onFocus(() => {
-    console.log("Focou");
-  });
-
-  Square.onClick(() => {
-    console.log("Clicou no amarelo");
-  });
-
-  const Square2 = new Graphic({
-    context,
-    canvas,
-    tag: "button",
-    id: "teste2",
-    ariaLabel: "Diminuir",
-    focable: true,
-    pathColor: "#F00",
-  });
-
-  const path2 = Square2.path;
-  path2.lineTo(squareX2, squareY2);
-  path2.lineTo(squareX2 + 60, squareY2);
-  path2.lineTo(squareX2 + 60, squareY2 - 60);
-  path2.lineTo(squareX2, squareY2 - 60);
-
-  Square2.setElementPath(button2);
-  Square2.draw();
-
-  Square2.onFocus(() => {
-    console.log("Focou");
-  });
-
-  Square2.onClick(() => {
-    console.log("Clicou no vermelho");
-  });
-};
-
-render();
-
-function moveSquare(direction) {
-  console.log(direction);
-  switch (direction) {
-    case "ArrowUp":
-      squareY -= 10;
-      render();
-
-      break;
-    case "ArrowDown":
-      squareY += 10;
-      render();
-
-      break;
-    case "ArrowLeft":
-      squareX -= 10;
-      render();
-
-      break;
-    case "ArrowRight":
-      squareX += 10;
-      render();
-
-      break;
-  }
-}
-
-window.addEventListener("keydown", (event) => {
-  moveSquare(event.key);
-});

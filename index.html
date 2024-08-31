@@ -2,23 +2,136 @@
 <html lang="en">
   <head>
     <title>Drawer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
     <style>
       * {
-        user-select: none;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
+
       body {
-        margin: 10px;
-        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        background-color: #f5f5f5;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        gap: 1rem;
+        max-width: 100%;
+      }
+
+      h1 {
+        font-size: 3rem;
+        text-align: center;
+        color: #333;
+      }
+
+      #button-list {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        width: 100%;
+        max-width: 600px;
+        padding: 1rem;
+      }
+
+      .top-buttons,
+      .bottom-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+        width: 100%;
+      }
+
+      button {
+        border: none;
+        padding: 0.5rem 1rem;
+        font-weight: bold;
+        border-radius: 0.4rem;
+        cursor: pointer;
+        width: 100%;
+        max-width: 10rem;
+      }
+
+      /* Cores harmonizadas */
+      .top-buttons button {
+        background-color: #8fb9aa;
+        color: white;
+      }
+
+      .bottom-buttons button {
+        background-color: #4d6a6d;
+        color: white;
+      }
+
+      p {
+        text-align: center;
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #555;
+        max-width: 100%;
+      }
+
+      @media (min-width: 768px) {
+        body {
+          padding: 3rem;
+        }
+
+        h1 {
+          font-size: 3.5rem;
+        }
+
+        button {
+          padding: 0.75rem 1.5rem;
+        }
+
+        p {
+          font-size: 1.2rem;
+        }
       }
     </style>
   </head>
   <body>
-    <canvas
-      id="myCanvas"
-      width="400"
-      height="500"
-      style="border: 1px solid black"
-    ></canvas>
-    <script src="Graphic.js"></script>
+    <h1>Graphics</h1>
+    <div style="width: 100%; max-width: 600px">
+      <p>
+        This is a prototype of a tool aimed at making the HTML5 Canvas an
+        accessible space for everyone, regardless of their disabilities or
+        conditions.
+      </p>
+    </div>
+    <div id="button-list">
+      <div class="top-buttons">
+        <a href="demo1">
+          <button>DEMO 1</button>
+        </a>
+        <a href="demo2">
+          <button>DEMO 2</button>
+        </a>
+        <a href="demo3">
+          <button>DEMO 3</button>
+        </a>
+      </div>
+      <div class="bottom-buttons">
+        <a href="graphics.min.js">
+          <button>MINIFIED CODE</button>
+        </a>
+        <a href="https://github.com/Diegocndd/drawer" target="_blank">
+          <button>SOURCE CODE</button>
+        </a>
+      </div>
+    </div>
+    <div>
+      <p>
+        Contributions and feedback are welcome.
+        <a href="mailto:diegocndd4@gmail.com">Get in touch!</a>
+      </p>
+    </div>
   </body>
 </html>

@@ -110,6 +110,8 @@
       };
       window.Drawer.focusedElement = null;
 
+      console.time("Execution Time");
+
       // Graphic Class
       class Graphic {
         constructor({
@@ -210,7 +212,6 @@
 
           let clicked = false;
 
-          // apenas o ultimo elemento deve clicado em caso de overlapping
           clickableElements.reverse().forEach(({ path, onClick }) => {
             if (!clicked && this.context.isPointInPath(path, mouseX, mouseY)) {
               if (onClick) onClick();
@@ -218,7 +219,6 @@
             }
           });
 
-          // evitar repetir o evento para os outros elementos
           event.stopImmediatePropagation();
         }
 
@@ -284,9 +284,6 @@
             if (!this.textContent) element.textContent = this.ariaLabel;
           }
 
-          // TODO: check this!
-          // button.textContent = this.ariaLabel;
-
           canvas.appendChild(element);
           if (this.persistent) _element.inSubDOM = true;
           this.element = element;
@@ -326,12 +323,10 @@
         }
 
         setPath() {
-          //   if (this.persistent) {
           const _element = window.Drawer.elements.find(
             (element) => element.id === this.id
           );
           if (_element) _element.path = this.path;
-          //   }
         }
 
         /**
@@ -394,10 +389,8 @@
         draw(undoFocusRing = false) {
           if (!undoFocusRing) {
             this.path.closePath();
-            // console.log("here");
             this.context.fillStyle = this.pathColor;
             this.context.fill(this.path);
-            // return;
           }
 
           this.setPath();
@@ -774,9 +767,7 @@
             );
           });
 
-        // Redraw canvas on map change
         map.addListener("bounds_changed", () => {
-          // Fetch and redraw meteorites when the map bounds change
           fetch("./Meteorite_Landings.csv")
             .then((response) => response.text())
             .then((data) => {
@@ -807,7 +798,6 @@
           const longitude = parseFloat(meteorite["reclong"]);
           const size = parseFloat(meteorite["mass (g)"]) || 1;
 
-          // Transform lat/lng to pixel position
           const projection = map.getProjection();
           const bounds = map.getBounds();
           const point = projection.fromLatLngToPoint(
@@ -831,11 +821,9 @@
               meteorite.name
             }, Latitude ${meteorite.reclat.toLocaleString()}, Longitude ${meteorite.reclong.toLocaleString()}`,
             id: `meteorite-${index}`,
-            pathColor: "red'",
+            pathColor: "red",
             focable: true,
           });
-
-          //   console.log(index);
 
           const path = meteor.path;
 
@@ -844,15 +832,12 @@
           meteor.draw();
 
           meteor.onFocus(() => console.log("focou"));
-
-          //   ctx.beginPath();
-          //   ctx.arc(pixelPosition.x, pixelPosition.y, radius, 0, 2 * Math.PI);
-          //   ctx.fillStyle = "yellow";
-          //   ctx.fill();
         });
       }
 
       window.initMap = initMap;
+
+      console.timeEnd("Execution Time");
     </script>
     <script
       src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD4P4aEzZms20E15I-9RYoRZ8SAL0Gkh_w&callback=initMap"
