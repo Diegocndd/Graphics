@@ -304,6 +304,21 @@
         }
 
         /**
+         * Desassocia o path do canvas a um elemento da subDOM.
+         *
+         * @returns
+         */
+        clearElementPath() {
+          window.Drawer.elements = window.Drawer.elements.filter(
+            (element) => element.id !== this.id
+          );
+          this.onClickCallback = () => {};
+          this.onFocusCallback = () => {};
+          this.element.onfocus = () => {};
+          this.element.onclick = () => {};
+        }
+
+        /**
          * Associa o path do canvas a um elemento da subDOM.
          *
          * @param {HTMLElement} element
